@@ -1,0 +1,8 @@
+{
+    "files": [
+        "addapplicationdialog.ui",
+        "dark_theme.qss",
+        "main.py",
+        "mainwindow.ui"
+    ]
+}

@@ -1,0 +1,12 @@
+baud_rate: 9600
+com_port: COM5
+invert_sliders: false
+noise_reduction: default
+slider_mapping:
+  0:
+  - master
+  1:
+  - Discord.exe
+  2: []
+  3: []
+  4: []

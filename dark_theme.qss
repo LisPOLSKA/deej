@@ -1,0 +1,168 @@
+/* Ustawienia ogólne dla całej aplikacji */
+QWidget {
+    background-color: #2e2e2e; /* Ciemnoszare tło */
+    color: #e0e0e0; /* Jasnoszary tekst */
+    border-radius: 10px;
+}
+
+/* Styl dla przycisków */
+QPushButton {
+    background-color: #4c4c4c; /* Ciemnoszare tło */
+    color: #e0e0e0; /* Jasnoszary tekst */
+    border: 1px solid #666666; /* Szara ramka */
+    padding: 5px;
+    border-radius: 10px;
+}
+
+QPushButton:hover {
+    background-color: #5c5c5c; /* Jaśniejszy cień tła na hover */
+}
+
+QPushButton:pressed {
+    background-color: #3c3c3c; /* Ciemniejszy cień tła na kliknięcie */
+}
+
+/* Styl dla list */
+QListWidget {
+    background-color: #3c3c3c; /* Ciemnoszare tło listy */
+    border: 1px solid #666666; /* Szara ramka */
+    color: #e0e0e0; /* Jasnoszary tekst */
+}
+
+QListWidget::item{
+    margin-bottom: 5px;
+    background: #2c2c2c;
+    margin: 2px;
+    border-radius: 10px;
+}
+QListWidget::item:hover{
+    margin-bottom: 5px;
+    background: #5c5c5c;
+}
+QLabel{
+    background-color: transparent !important;
+    color: #e0e0e0;
+}
+*[class="item"]{
+    background: transparent;
+}
+
+/* Styl dla nagłówków grup */
+QGroupBox {
+    border: 1px solid #666666; /* Szara ramka */
+    margin-top: 10px;
+    padding: 10px;
+    color: #e0e0e0; /* Jasnoszary tekst */
+}
+
+/* Styl dla checkboxów */
+QCheckBox {
+    color: #e0e0e0; /* Jasnoszary tekst */
+}
+
+/* Styl dla etykiet */
+QLabel {
+    color: #e0e0e0; /* Jasnoszary tekst */
+}
+
+/* Styl dla okna głównego */
+QMainWindow {
+    background-color: #2e2e2e; /* Ciemnoszare tło */
+}
+
+/* Styl dla zakładek w QTabWidget */
+QTabWidget::pane {
+    border: 1px solid #666666; /* Szara ramka dla kontenera zakładek */
+    border-radius: 10px; /* Zaokrąglone rogi kontenera zakładek */
+    background-color: #3c3c3c; /* Ciemnoszare tło */
+}
+
+QTabBar::tab {
+    background-color: #4c4c4c; /* Ciemnoszare tło zakładki */
+    color: #e0e0e0; /* Jasnoszary tekst zakładki */
+    border: 1px solid #666666; /* Szara ramka zakładki */
+    border-bottom: none; /* Usunięcie dolnej ramki dla zakładek */
+    padding: 10px;
+    border-radius: 5px 5px 0 0; /* Zaokrąglone rogi zakładki */
+}
+
+QTabBar::tab:selected {
+    background-color: #2e2e2e; /* Tło wybranej zakładki */
+    color: #e0e0e0; /* Jasnoszary tekst wybranej zakładki */
+    border-bottom: 1px solid #2e2e2e; /* Przedłużenie tła wybranej zakładki na kontener zakładek */
+}
+
+QTabBar::tab:hover {
+    background-color: #5c5c5c; /* Jaśniejsze tło zakładki na hover */
+}
+#listApplications::item, #listSystem::item{
+    padding: 5px
+}
+QScrollBar:vertical {
+    background-color: #2e2e2e; /* Tło scrollbara - dopasowane do tła aplikacji */
+    width: 8px; /* Cienki scrollbar */
+    margin: 0; /* Brak marginesów */
+}
+
+QScrollBar::handle:vertical {
+    background-color: #888; /* Kolor uchwytu (thumb) */
+    min-height: 20px; /* Minimalna wysokość uchwytu */
+    border-radius: 4px; /* Zaokrąglone rogi uchwytu */
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #aaa; /* Kolor uchwytu podczas hover */
+}
+
+QScrollBar::handle:vertical:pressed {
+    background-color: #666; /* Kolor uchwytu podczas kliknięcia */
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    background: none; /* Brak tła dla przycisków na końcach */
+    height: 0; /* Ukrycie przycisków */
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    width: 0;
+    height: 0;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none; /* Przezroczyste tło dla stron */
+}
+
+/* Stylizacja poziomego scrollbara */
+QScrollBar:horizontal {
+    background-color: #2e2e2e; /* Tło scrollbara - dopasowane do tła aplikacji */
+    height: 8px; /* Cienki scrollbar */
+    margin: 0; /* Brak marginesów */
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #888; /* Kolor uchwytu (thumb) */
+    min-width: 20px; /* Minimalna szerokość uchwytu */
+    border-radius: 4px; /* Zaokrąglone rogi uchwytu */
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #aaa; /* Kolor uchwytu podczas hover */
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background-color: #666; /* Kolor uchwytu podczas kliknięcia */
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    background: none; /* Brak tła dla przycisków na końcach */
+    width: 0; /* Ukrycie przycisków */
+}
+
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
+    width: 0;
+    height: 0;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none; /* Przezroczyste tło dla stron */
+}
