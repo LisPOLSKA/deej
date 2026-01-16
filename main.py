@@ -151,9 +151,18 @@ class DeejConfigManager(QtWidgets.QMainWindow):
     def detect_arduino_port(self):
         ports = list(serial.tools.list_ports.comports())
         for port in ports:
-            if "Arduino" in port.description or "CH340" in port.description:
+            if ("Arduino" in port.description or "CH340" in port.description):
                 return port.device
+            # Sprawdź VID i PID
+            if port.vid is not None and port.pid is not None:
+                if (port.vid == 0x1A86 and port.pid == 0x7523):  # CH340
+                    return port.device
+                if (port.vid == 0x2341):  # Oficjalne Arduino
+                    return port.device
+                if (port.vid == 0x0403 and port.pid == 0x6001):  # FTDI
+                    return port.device
         return None
+
 
     def detect_and_set_arduino_port(self):
         arduino_port = self.detect_arduino_port()

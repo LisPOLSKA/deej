@@ -1,0 +1,5 @@
+.qtcreator/
+pyinstaller-develop/
+logs/
+build/
+dist/
