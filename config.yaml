@@ -1,12 +1,17 @@
 baud_rate: 9600
-com_port: COM5
-invert_sliders: false
+com_port: /dev/ttyUSB0
+invert_sliders: true
 noise_reduction: default
 slider_mapping:
   0:
   - master
   1:
   - Discord.exe
-  2: []
-  3: []
-  4: []
+  2:
+  - Fmod Audio
+  - eurotrucks2
+  - enlisted
+  3:
+  - Firefox
+  4:
+  - Spotify

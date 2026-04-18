@@ -7,13 +7,173 @@ import serial.tools.list_ports
 import subprocess
 import threading
 import time
-from pycaw.pycaw import AudioUtilities
+import psutil
+import shutil
+
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, 'assets')
+
+
+def get_runtime_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(os.path.abspath(sys.executable))
+    return BASE_DIR
+
+
+def get_deej_executable_path():
+    executable_name = 'deej.exe' if sys.platform == 'win32' else 'deej'
+    search_dirs = [get_runtime_base_dir(), BASE_DIR]
+
+    for directory in search_dirs:
+        candidate = os.path.join(directory, executable_name)
+        if os.path.exists(candidate):
+            return candidate
+
+    return os.path.join(get_runtime_base_dir(), executable_name)
+
+
+def get_config_file_path():
+    deej_path = get_deej_executable_path()
+    return os.path.join(os.path.dirname(deej_path), 'config.yaml')
+
+
+def ensure_persistent_config_file():
+    config_file_path = get_config_file_path()
+    os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
+
+    if os.path.exists(config_file_path):
+        return
+
+    default_paths = [
+        os.path.join(BASE_DIR, 'config.yaml'),
+        os.path.join(ASSETS_DIR, 'config.yaml')
+    ]
+
+    for default_path in default_paths:
+        if os.path.exists(default_path):
+            shutil.copy2(default_path, config_file_path)
+            return
+
+    with open(config_file_path, 'w') as file:
+        yaml.safe_dump({}, file, default_flow_style=False)
+
+
+def clean_app_name(name):
+    normalized = name.strip().strip('"')
+    lowered = normalized.lower()
+
+    if lowered.endswith('.exe'):
+        lowered = lowered[:-4]
+    if lowered.endswith('.bin'):
+        lowered = lowered[:-4]
+
+    lowered = lowered.replace('-', ' ').replace('_', ' ').strip()
+
+    blocked_names = {
+        'speech dispatcher',
+        'speech dispatcher dummy',
+        'speech-dispatcher',
+        'speech-dispatcher-dummy',
+        'sd dummy',
+        'dummy',
+        'playback',
+        'stream',
+        'output',
+        'fmod audio',
+        'audio stream'
+    }
+    if lowered in blocked_names:
+        return ""
+
+    if "chrome" in lowered:
+        return "chrome"
+    if "firefox" in lowered:
+        return "firefox"
+    if "discord" in lowered:
+        return "discord"
+    if "spotify" in lowered:
+        return "spotify"
+    if "eurotrucks2" in lowered or "euro truck" in lowered:
+        return "eurotrucks2"
+
+    return lowered.replace(" ", "")
+
+
+def get_audio_apps_linux():
+    try:
+        result = subprocess.check_output(["pactl", "list", "sink-inputs"], text=True)
+
+        def parse_value(line):
+            _, value = line.split("=", 1)
+            return value.strip().strip('"')
+
+        def finalize_entry(entry, app_set):
+            candidates = [
+                entry.get("application.process.binary", ""),
+                entry.get("application.name", ""),
+                entry.get("media.name", "")
+            ]
+
+            for candidate in candidates:
+                if not candidate:
+                    continue
+                # Odrzuć wartości będące samym ID/liczbą.
+                if candidate.isdigit():
+                    continue
+                cleaned = clean_app_name(candidate)
+                if cleaned:
+                    app_set.add(cleaned)
+                    return
+
+        apps = set()
+        current_entry = {}
+
+        for raw_line in result.splitlines():
+            line = raw_line.strip()
+
+            if line.startswith("Sink Input #"):
+                if current_entry:
+                    finalize_entry(current_entry, apps)
+                current_entry = {}
+                continue
+
+            if "=" not in line:
+                continue
+
+            if line.startswith("application.name"):
+                current_entry["application.name"] = parse_value(line)
+            elif line.startswith("application.process.binary"):
+                current_entry["application.process.binary"] = parse_value(line)
+            elif line.startswith("media.name"):
+                current_entry["media.name"] = parse_value(line)
+
+        if current_entry:
+            finalize_entry(current_entry, apps)
+
+        return sorted(apps)
+    except Exception:
+        return []
+
+
+def get_processes_linux():
+    try:
+        user_name = os.getlogin()
+    except OSError:
+        user_name = os.environ.get("USER", "")
+
+    result = subprocess.check_output(
+        ["ps", "-u", user_name, "-o", "comm="],
+        text=True
+    )
+
+    return sorted(set(line.strip() for line in result.splitlines() if line.strip()))
 
 # Klasa dialogu do dodawania aplikacji
 class AddApplicationDialog(QtWidgets.QDialog):
     def __init__(self, special_options=None, parent=None):
         super().__init__(parent)
-        uic.loadUi(os.path.join(os.path.expanduser("~"), 'deej/assets', 'addapplicationdialog.ui'), self)
+        uic.loadUi(os.path.join(ASSETS_DIR, 'addapplicationdialog.ui'), self)
         self.special_options = special_options or {}
         self.listApplications = self.findChild(QtWidgets.QListWidget, 'listApplications')
         self.listSystem = self.findChild(QtWidgets.QListWidget, 'listSystem')
@@ -38,24 +198,11 @@ class AddApplicationDialog(QtWidgets.QDialog):
         elif sys.platform == 'darwin':
             return self.get_installed_applications_mac()
         else:
-            return []
+            apps = get_audio_apps_linux()
+            return apps if apps else get_processes_linux()
 
     def get_installed_applications_windows(self):
-        try:
-            sessions = AudioUtilities.GetAllSessions()
-            apps = set()
-            for session in sessions:
-                if session.Process:
-                    try:
-                        app_name = session.Process.name()
-                        if app_name and app_name != "Unknown":
-                            apps.add(app_name)
-                    except Exception as e:
-                        print(f"Error retrieving process name: {e}")
-            return list(apps)
-        except Exception as e:
-            print(f"Error retrieving applications: {e}")
-            return []
+        return []
 
     def get_installed_applications_mac(self):
         try:
@@ -79,9 +226,9 @@ class DeejConfigManager(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(DeejConfigManager, self).__init__()
-        self.setWindowIcon(QtGui.QIcon(os.path.join(os.path.expanduser("~"), 'deej/assets', 'icon.png')))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(ASSETS_DIR, 'icon.png')))
         self.setWindowTitle("Mixer")
-        uic.loadUi(os.path.join(os.path.expanduser("~"), 'deej/assets', 'mainwindow.ui'), self)
+        uic.loadUi(os.path.join(ASSETS_DIR, 'mainwindow.ui'), self)
         self.deej_process = None
         self.special_options = {
             'master': 'Master Volume',
@@ -90,7 +237,8 @@ class DeejConfigManager(QtWidgets.QMainWindow):
             'deej.current': 'Current App',
             'system': 'System Sounds'
         }
-        self.config_file_path = os.path.join(os.path.expanduser("~"), 'deej/config.yaml')
+        self.config_file_path = get_config_file_path()
+        ensure_persistent_config_file()
         self.arduinoDetected.connect(self.handle_arduino_detected)
         self.arduinoNotDetected.connect(self.handle_arduino_not_detected)
         self.monitoring_thread = threading.Thread(target=self.monitor_arduino, daemon=True)
@@ -123,7 +271,7 @@ class DeejConfigManager(QtWidgets.QMainWindow):
         self.addButton3.clicked.connect(lambda: self.open_add_dialog(self.listSlider3))
         self.addButton4.clicked.connect(lambda: self.open_add_dialog(self.listSlider4))
         self.tray_icon = QtWidgets.QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QtGui.QIcon(os.path.join(os.path.expanduser("~"), 'deej/assets', 'icon.png')))
+        self.tray_icon.setIcon(QtGui.QIcon(os.path.join(ASSETS_DIR, 'icon.png')))
         show_action = QtWidgets.QAction("Show", self)
         quit_action = QtWidgets.QAction("Exit", self)
         show_action.triggered.connect(self.show)
@@ -135,7 +283,7 @@ class DeejConfigManager(QtWidgets.QMainWindow):
         self.tray_icon.show()
         self.load_config()
         self.detect_and_set_arduino_port()
-        with open(os.path.join(os.path.expanduser("~"), 'deej/assets', 'dark_theme.qss'), 'r') as file:
+        with open(os.path.join(ASSETS_DIR, 'dark_theme.qss'), 'r') as file:
             self.setStyleSheet(file.read())
 
     def closeEvent(self, event):
@@ -174,6 +322,7 @@ class DeejConfigManager(QtWidgets.QMainWindow):
 
     def save_arduino_port_to_config(self, port):
         try:
+            os.makedirs(os.path.dirname(self.config_file_path), exist_ok=True)
             config = {}
             if os.path.exists(self.config_file_path):
                 with open(self.config_file_path, 'r') as file:
@@ -190,24 +339,11 @@ class DeejConfigManager(QtWidgets.QMainWindow):
         elif sys.platform == 'darwin':
             return self.get_installed_applications_mac()
         else:
-            return []
+            apps = get_audio_apps_linux()
+            return apps if apps else get_processes_linux()
 
     def get_installed_applications_windows(self):
-        try:
-            sessions = AudioUtilities.GetAllSessions()
-            apps = set()
-            for session in sessions:
-                if session.Process:
-                    try:
-                        app_name = session.Process.name()
-                        if app_name and app_name != "Unknown":
-                            apps.add(app_name)
-                    except Exception as e:
-                        print(f"Error retrieving process name: {e}")
-            return list(apps)
-        except Exception as e:
-            print(f"Error retrieving applications: {e}")
-            return []
+        return []
 
     def get_installed_applications_mac(self):
         try:
@@ -280,6 +416,7 @@ class DeejConfigManager(QtWidgets.QMainWindow):
             'com_port': self.detect_arduino_port() or "",
         }
         try:
+            os.makedirs(os.path.dirname(self.config_file_path), exist_ok=True)
             with open(self.config_file_path, 'w') as file:
                 yaml.safe_dump(config, file, default_flow_style=False)
             QtWidgets.QMessageBox.information(self, "Success", "Configuration saved successfully!")
@@ -338,12 +475,14 @@ class DeejConfigManager(QtWidgets.QMainWindow):
     def start_deej(self):
         if not self.deej_process:
             try:
-                deej_path = os.path.join(os.path.expanduser("~"), 'deej', 'deej.exe')
+                deej_path = get_deej_executable_path()
+                if not os.path.exists(deej_path):
+                    raise FileNotFoundError(f"deej executable not found: {deej_path}")
                 print(deej_path)
-                self.deej_process = subprocess.Popen(deej_path, cwd=os.path.join(os.path.expanduser("~"), 'deej'))
+                self.deej_process = subprocess.Popen(deej_path, cwd=os.path.dirname(deej_path))
                 print(self.deej_process)
             except Exception as e:
-                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to start deej.exe: {e}")
+                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to start deej executable: {e}")
 
     @QtCore.pyqtSlot()
     def stop_deej(self):
