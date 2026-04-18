@@ -3,3 +3,4 @@ pyinstaller-develop/
 logs/
 build/
 dist/
+install/deej-mixer

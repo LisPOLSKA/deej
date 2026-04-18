@@ -1,0 +1,2 @@
+You first have to use pyinstaller to create binary file
+`pyinstaller --clean --noconfirm --onefile --windowed   --name deej-mixer   --add-data "assets:assets"   --add-data "config.yaml:."   --add-data "deej:." --icon="assets/icon.io"  main.py`
