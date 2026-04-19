@@ -96,6 +96,8 @@ def clean_app_name(name):
         return "spotify"
     if "eurotrucks2" in lowered or "euro truck" in lowered:
         return "eurotrucks2"
+    if "zerohour" in lowered or "zero hour" in lowered:
+        return "zerohour"
 
     return lowered.replace(" ", "")
 
@@ -110,21 +112,43 @@ def get_audio_apps_linux():
 
         def finalize_entry(entry, app_set):
             candidates = [
-                entry.get("application.process.binary", ""),
-                entry.get("application.name", ""),
-                entry.get("media.name", "")
+                ("application.process.binary", entry.get("application.process.binary", "")),
+                ("application.name", entry.get("application.name", "")),
+                ("media.name", entry.get("media.name", ""))
             ]
 
-            for candidate in candidates:
+            wine_wrappers = {
+                "wine",
+                "wine64",
+                "winepreloader",
+                "wine64preloader",
+                "wine-preloader",
+                "wine64-preloader",
+                "wineserver"
+            }
+
+            deferred_wrapper = ""
+
+            for _, candidate in candidates:
                 if not candidate:
                     continue
                 # Odrzuć wartości będące samym ID/liczbą.
                 if candidate.isdigit():
                     continue
                 cleaned = clean_app_name(candidate)
+                if not cleaned:
+                    continue
+
+                if cleaned in wine_wrappers:
+                    deferred_wrapper = cleaned
+                    continue
+
                 if cleaned:
                     app_set.add(cleaned)
                     return
+
+            if deferred_wrapper:
+                app_set.add(deferred_wrapper)
 
         apps = set()
         current_entry = {}
@@ -175,6 +199,7 @@ class AddApplicationDialog(QtWidgets.QDialog):
         super().__init__(parent)
         uic.loadUi(os.path.join(ASSETS_DIR, 'addapplicationdialog.ui'), self)
         self.special_options = special_options or {}
+        self.tabWidget = self.findChild(QtWidgets.QTabWidget, 'tabWidget')
         self.listApplications = self.findChild(QtWidgets.QListWidget, 'listApplications')
         self.listSystem = self.findChild(QtWidgets.QListWidget, 'listSystem')
         self.okButton = self.findChild(QtWidgets.QPushButton, 'okButton')
@@ -184,6 +209,58 @@ class AddApplicationDialog(QtWidgets.QDialog):
         self.populate_lists()
         self.listApplications.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
         self.listSystem.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.setup_custom_tab()
+
+    def setup_custom_tab(self):
+        custom_tab = QtWidgets.QWidget()
+        custom_layout = QtWidgets.QVBoxLayout(custom_tab)
+
+        self.customAppInput = QtWidgets.QLineEdit()
+        self.customAppInput.setPlaceholderText('Type application name, e.g. firefox')
+        self.customAppInput.setStyleSheet(
+            'QLineEdit { border: 2px solid #6f7a89; border-radius: 6px; padding: 6px; } '
+            'QLineEdit:focus { border: 2px solid #3b82f6; }'
+        )
+        self.customAppInput.returnPressed.connect(self.add_custom_application)
+
+        self.customAddButton = QtWidgets.QPushButton('Add')
+        self.customAddButton.clicked.connect(self.add_custom_application)
+
+        input_layout = QtWidgets.QHBoxLayout()
+        input_layout.addWidget(self.customAppInput)
+        input_layout.addWidget(self.customAddButton)
+
+        self.listCustomApplications = QtWidgets.QListWidget()
+        self.listCustomApplications.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+
+        help_label = QtWidgets.QLabel('Add custom app names manually and select them from the list below.')
+        help_label.setWordWrap(True)
+
+        custom_layout.addWidget(help_label)
+        custom_layout.addLayout(input_layout)
+        custom_layout.addWidget(self.listCustomApplications)
+
+        self.tabWidget.addTab(custom_tab, 'Custom')
+
+    def add_custom_application(self):
+        raw_value = self.customAppInput.text().strip()
+        if not raw_value:
+            return
+
+        custom_name = clean_app_name(raw_value)
+        if not custom_name:
+            QtWidgets.QMessageBox.warning(self, 'Invalid name', 'Please enter a valid application name.')
+            return
+
+        existing_items = {
+            self.listCustomApplications.item(i).text()
+            for i in range(self.listCustomApplications.count())
+        }
+
+        if custom_name not in existing_items:
+            self.listCustomApplications.addItem(custom_name)
+
+        self.customAppInput.clear()
 
     def populate_lists(self):
         applications = self.get_installed_applications()
@@ -215,9 +292,19 @@ class AddApplicationDialog(QtWidgets.QDialog):
     def get_selected_items(self):
         selected_apps = [self.listApplications.item(i).text() for i in range(self.listApplications.count()) if self.listApplications.item(i).isSelected()]
         selected_system = [self.listSystem.item(i).text() for i in range(self.listSystem.count()) if self.listSystem.item(i).isSelected()]
+        selected_custom = [
+            self.listCustomApplications.item(i).text()
+            for i in range(self.listCustomApplications.count())
+            if self.listCustomApplications.item(i).isSelected()
+        ]
+
+        pending_custom = clean_app_name(self.customAppInput.text().strip()) if hasattr(self, 'customAppInput') else ''
+        if pending_custom and pending_custom not in selected_custom:
+            selected_custom.append(pending_custom)
+
         special_options_reverse = {v: k for k, v in self.special_options.items()}
         selected_system_mapped = [special_options_reverse.get(item, item) for item in selected_system]
-        return selected_apps + selected_system_mapped
+        return selected_apps + selected_system_mapped + selected_custom
 
 # Klasa głównego menadżera konfiguracji
 class DeejConfigManager(QtWidgets.QMainWindow):
