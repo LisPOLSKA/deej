@@ -452,8 +452,11 @@ class DeejConfigManager(QtWidgets.QMainWindow):
         self.remove_duplicates(list_widget)
 
     def add_list_item_with_button(self, list_widget, descriptive_name, user_data):
-        item = QtWidgets.QListWidgetItem(descriptive_name)
+        # Text is rendered by the custom QLabel below; keep QListWidgetItem text empty
+        # to avoid showing the same app name twice.
+        item = QtWidgets.QListWidgetItem('')
         item.setData(QtCore.Qt.UserRole, user_data)
+        item.setToolTip(descriptive_name)
         button = QtWidgets.QPushButton('X')
         button.setMaximumSize(30, 30)
         button.clicked.connect(lambda: self.remove_list_item(list_widget, item))
